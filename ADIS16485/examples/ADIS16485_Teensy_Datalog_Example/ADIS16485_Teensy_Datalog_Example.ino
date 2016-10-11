@@ -45,20 +45,20 @@
 #include <SPI.h>
 
 // Temporary Data Arrays
-int16_t sensorData[9];
-float scaledData[7];
+int16_t *sensorData;
+String separator = ",";
 
 // Call ADIS16485 Class
 ADIS16485 IMU(10,2,6); // Chip Select, Data Ready, Reset Pin Assignments
 
 void setup()
 {
-    Serial.begin(115200); // Initialize serial output via USB
+    Serial.begin(9600); // Initialize serial output via USB
     IMU.configSPI(); // Configure SPI communication
     delay(1000); // Give the part time to start up
     IMU.regWrite(FNCTIO_CTRL, 0x0C);  // Enable Data Ready, set polarity
     delay(20); 
-    IMU.regWrite(DEC_RATE, 0x00), // Disable decimation
+    IMU.regWrite(DEC_RATE, 0x17), // Disable decimation
     delay(20);
 
     // Configure SPI settings for IMU
@@ -71,52 +71,10 @@ void setup()
 // Function used to read register values when an ISR is triggered using the IMU's DataReady output
 void grabData()
 {
-    sensorData[0] = IMU.regRead(DIAG_STS); 
-    sensorData[1] = IMU.regRead(ALM_STS); 
-    sensorData[2] = IMU.regRead(X_GYRO_OUT); 
-    sensorData[3] = IMU.regRead(Y_GYRO_OUT); 
-    sensorData[4] = IMU.regRead(Z_GYRO_OUT); 
-    sensorData[5] = IMU.regRead(X_ACCL_OUT); 
-    sensorData[6] = IMU.regRead(Y_ACCL_OUT); 
-    sensorData[7] = IMU.regRead(Z_ACCL_OUT); 
-    sensorData[8] = IMU.regRead(TEMP_OUT);
-    scaleData(); // Scale sensor output data
-    printtoserial(); // Print data to the serial port
-}
-
-// Print burst data to serial port. Data output rate is determined by the IMU decimation rate
-void printtoserial()
-{
-    Serial.print(sensorData[0]); // DIAG_STS
-    Serial.print(",");
-    Serial.print(scaledData[0]); // Scaled XGYRO
-    Serial.print(",");
-    Serial.print(scaledData[1]); // Scaled YGYRO
-    Serial.print(",");
-    Serial.print(scaledData[2]); // Scaled ZGYRO
-    Serial.print(",");
-    Serial.print(scaledData[3]); // Scaled XACCL
-    Serial.print(",");
-    Serial.print(scaledData[4]); // Scaled YACCL
-    Serial.print(",");
-    Serial.print(scaledData[5]); // Scaled ZACCL
-    Serial.print(",");
-    Serial.print(scaledData[6]); // Scaled TEMP
-    Serial.print(",");
-    Serial.println(sensorData[1]); // ALM_STS
-    Serial.send_now();
-}
-
-// Function used to scale all acquired data (scaling functions are included in ADIS16485.cpp)
-void scaleData()
-{
-    scaledData[0] = IMU.gyroScale(sensorData[2]);   // XGYRO
-    scaledData[1] = IMU.gyroScale(sensorData[3]);   // YGYRO
-    scaledData[2] = IMU.gyroScale(sensorData[4]);   // ZGYRO
-    scaledData[3] = IMU.accelScale(sensorData[5]);  // XACCL
-    scaledData[4] = IMU.accelScale(sensorData[6]);  // YACCL
-    scaledData[5] = IMU.accelScale(sensorData[7]);  // ZACCL
-    scaledData[6] = IMU.tempScale(sensorData[8]);   // TEMP
+    sensorData = IMU.sensorRead();
+    // Print burst data to serial port. Data output rate is determined by the IMU decimation rate
+    String data = ((*(sensorData + 2)) + separator + (*(sensorData + 3)) + separator + (*(sensorData + 4)) + separator + (*(sensorData + 5)) + separator + (*(sensorData + 6)) + separator + (*(sensorData + 7)) + separator + (*(sensorData + 8)));
+    Serial.println(data); 
 }
 
 // Main loop

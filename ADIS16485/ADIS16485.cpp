@@ -122,6 +122,8 @@ int16_t ADIS16485::regRead(uint16_t regAddr) {
   uint8_t _msbData = SPI.transfer(0x00); // Send (0x00) and place upper byte into variable
   uint8_t _lsbData = SPI.transfer(0x00); // Send (0x00) and place lower byte into variable
   digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
   
   int16_t _dataOut = (_msbData << 8) | (_lsbData & 0xFF); // Concatenate upper and lower bytes
   // Shift MSB data left by 8 bits, mask LSB data with 0xFF, and OR both bits.
@@ -178,7 +180,127 @@ int ADIS16485::regWrite(uint16_t regAddr, int16_t regData) {
   SPI.transfer(lowBytehighWord); // Write low byte from high word to SPI bus
   digitalWrite(_CS, HIGH); // Set CS high to disable device
 
+  delayMicroseconds(10); // Stall time delay
+
   return(1);
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Reads a fixed set of registers from the sensor.
+// Returns a pointer to an array of sensor data. 
+////////////////////////////////////////////////////////////////////////////
+// No inputs required.
+////////////////////////////////////////////////////////////////////////////
+int16_t *ADIS16485::sensorRead(void) {
+  // Set up temporary variables
+  uint8_t sensorbyte[18];
+  static int16_t sensorwords[9];
+
+  // Check whether the sensor is currently on the requested page
+  if (currentPage != 0x00) {
+    // Write desired page to PAGE_ID register
+    digitalWrite(_CS, LOW); // Set CS low to enable device
+    SPI.transfer(0x80); // Write high byte from low word to SPI bus
+    SPI.transfer(0x00); // Write low byte from low word to SPI bus
+    digitalWrite(_CS, HIGH); // Set CS high to disable device
+    // Write new current page to tracking variable
+    currentPage = 0x00; 
+    delayMicroseconds(10); // Stall time delay
+  }
+
+  // Write initial register address and discard erroneous data
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  SPI.transfer(DIAG_STS); // Write address over SPI bus
+  SPI.transfer(0x00); // Write 0x00 to the SPI bus to complete word
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[0] = SPI.transfer(ALM_STS); // Send next address and place DIAG_STS MSB into variable
+  sensorbyte[1] = SPI.transfer(0x00); // Complete word and place DIAG_STS LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[2] = SPI.transfer(X_GYRO_OUT); // Send next address and place ALM_STS MSB into variable
+  sensorbyte[3] = SPI.transfer(0x00); // Complete word and place ALM_STS LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[4] = SPI.transfer(Y_GYRO_OUT); // Send next address and place X_GYRO_OUT MSB into variable
+  sensorbyte[5] = SPI.transfer(0x00); // Complete word and place X_GYRO_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[6] = SPI.transfer(Z_GYRO_OUT); // Send next address and place Y_GYRO_OUT MSB into variable
+  sensorbyte[7] = SPI.transfer(0x00); // Complete word and place Y_GYRO_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[8] = SPI.transfer(X_ACCL_OUT); // Send next address and place Z_GYRO_OUT MSB into variable
+  sensorbyte[9] = SPI.transfer(0x00); // Complete word and place Z_GYRO_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[10] = SPI.transfer(Y_ACCL_OUT); // Send next address and place X_ACCL_OUT MSB into variable
+  sensorbyte[11] = SPI.transfer(0x00); // Complete word and place X_ACCL_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[12] = SPI.transfer(Z_ACCL_OUT); // Send next address and place Y_ACCL_OUT MSB into variable
+  sensorbyte[13] = SPI.transfer(0x00); // Complete word and place Y_ACCL_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[14] = SPI.transfer(TEMP_OUT); // Send next address and place Z_ACCL_OUT MSB into variable
+  sensorbyte[15] = SPI.transfer(0x00); // Complete word and place Z_ACCL_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Read data from requested register and transfer the next address in the same frame
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  sensorbyte[16] = SPI.transfer(0x00); // Send dummy address and place TEMP_OUT MSB into variable
+  sensorbyte[17] = SPI.transfer(0x00); // Complete word and place TEMP_OUT LSB into variable
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  delayMicroseconds(10); // Stall time delay
+
+  // Join bytes into words
+  sensorwords[0] = ((sensorbyte[0] << 8) | (sensorbyte[1] & 0xFF)); //DIAG_STS
+  sensorwords[1] = ((sensorbyte[2] << 8) | (sensorbyte[3] & 0xFF)); //ALM_STS
+  sensorwords[2] = ((sensorbyte[4] << 8) | (sensorbyte[5] & 0xFF)); //XGYRO
+  sensorwords[3] = ((sensorbyte[6] << 8) | (sensorbyte[7] & 0xFF)); //YGYRO
+  sensorwords[4] = ((sensorbyte[8] << 8) | (sensorbyte[9] & 0xFF)); //ZGYRO
+  sensorwords[5] = ((sensorbyte[10] << 8) | (sensorbyte[11] & 0xFF)); //XACCEL
+  sensorwords[6] = ((sensorbyte[12] << 8) | (sensorbyte[13] & 0xFF)); //YACCEL
+  sensorwords[7] = ((sensorbyte[14] << 8) | (sensorbyte[15] & 0xFF)); //ZACCEL
+  sensorwords[8] = ((sensorbyte[16] << 8) | (sensorbyte[17] & 0xFF)); //TEMP
+
+  return sensorwords;
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

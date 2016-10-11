@@ -152,6 +152,9 @@ public:
   // Write register
   int regWrite(uint16_t regAddr, int16_t regData);
 
+  // Read a fixed set of sensor data
+  int16_t *sensorRead(void);
+
   // Scale accelerator data
   float accelScale(int16_t sensorData);
 
