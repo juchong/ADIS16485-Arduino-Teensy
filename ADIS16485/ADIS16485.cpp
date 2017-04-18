@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  September 2016
+//  April 2017
 //  Author: Juan Jose Chong <juan.chong@analog.com>
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  ADIS16485.cpp
@@ -55,7 +55,7 @@ ADIS16485::ADIS16485(int CS, int DR, int RST) {
   digitalWrite(_CS, HIGH); // Initialize CS pin to be high
   digitalWrite(_RST, HIGH); // Initialize RST pin to be high
 }
-
+ 
 ////////////////////////////////////////////////////////////////////////////
 // Destructor
 ////////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ ADIS16485::~ADIS16485() {
 ////////////////////////////////////////////////////////////////////////////
 int ADIS16485::resetDUT(uint8_t ms) {
   digitalWrite(_RST, LOW);
-  delayMicroseconds(40);
+  delayMicroseconds(100);
   digitalWrite(_RST, HIGH);
   delay(ms);
   return(1);
@@ -92,7 +92,7 @@ int ADIS16485::configSPI() {
 // regAddr - address of register to be read
 // return - (int) signed 16 bit 2's complement number
 ////////////////////////////////////////////////////////////////////////////////////////////
-int16_t ADIS16485::regRead(uint16_t regAddr) {
+uint16_t ADIS16485::regRead(uint16_t regAddr) {
   // Separate page ID from register address
   uint8_t page = ((regAddr >> 8) & 0xFF);
   uint8_t address = (regAddr & 0xFF);
@@ -106,7 +106,7 @@ int16_t ADIS16485::regRead(uint16_t regAddr) {
     digitalWrite(_CS, HIGH); // Set CS high to disable device
     // Write new current page to tracking variable
     currentPage = page; 
-    delayMicroseconds(10); // Stall time delay
+    delayMicroseconds(_stall); // Stall time delay
   }
 
   // Write desired register address
@@ -115,17 +115,15 @@ int16_t ADIS16485::regRead(uint16_t regAddr) {
   SPI.transfer(0x00); // Write 0x00 to the SPI bus fill the 16 bit transaction requirement
   digitalWrite(_CS, HIGH); // Set CS high to disable device
 
-  delayMicroseconds(10); // Stall time delay
+  delayMicroseconds(_stall); // Stall time delay
 
   // Read data from requested register
   digitalWrite(_CS, LOW); // Set CS low to enable device
-  uint8_t _msbData = SPI.transfer(0x00); // Send (0x00) and place upper byte into variable
-  uint8_t _lsbData = SPI.transfer(0x00); // Send (0x00) and place lower byte into variable
+  uint16_t _dataOut = (SPI.transfer(0x00) << 8) | (SPI.transfer(0x00) & 0xFF); // Concatenate upper and lower bytes
   digitalWrite(_CS, HIGH); // Set CS high to disable device
 
-  delayMicroseconds(10); // Stall time delay
-  
-  int16_t _dataOut = (_msbData << 8) | (_lsbData & 0xFF); // Concatenate upper and lower bytes
+  delayMicroseconds(_stall); // Stall time delay
+
   // Shift MSB data left by 8 bits, mask LSB data with 0xFF, and OR both bits.
 
   return(_dataOut);
@@ -152,7 +150,7 @@ int ADIS16485::regWrite(uint16_t regAddr, int16_t regData) {
     digitalWrite(_CS, HIGH); // Set CS high to disable device
     // Write new current page to tracking variable
     currentPage = page; 
-    delayMicroseconds(10); // Stall time delay
+    delayMicroseconds(_stall); // Stall time delay
   }
 
   // Sanity-check address and register data
@@ -160,27 +158,21 @@ int ADIS16485::regWrite(uint16_t regAddr, int16_t regData) {
   uint16_t lowWord = (addr | (regData & 0xFF)); // OR Register address (A) with data(D) (AADD)
   uint16_t highWord = ((addr | 0x100) | ((regData >> 8) & 0xFF)); // OR Register address with data and increment address
 
-  // Split words into chars for 8-bit transfers (Arduino language limitation)
-  uint8_t highBytehighWord = (highWord >> 8);
-  uint8_t lowBytehighWord = (highWord & 0xFF);
-  uint8_t highBytelowWord = (lowWord >> 8);
-  uint8_t lowBytelowWord = (lowWord & 0xFF);
-
   // Write highWord to SPI bus
   digitalWrite(_CS, LOW); // Set CS low to enable device
-  SPI.transfer(highBytelowWord); // Write high byte from low word to SPI bus
-  SPI.transfer(lowBytelowWord); // Write low byte from low word to SPI bus
+  SPI.transfer(lowWord >> 8); // Write high byte from low word to SPI bus
+  SPI.transfer(lowWord & 0xFF); // Write low byte from low word to SPI bus
   digitalWrite(_CS, HIGH); // Set CS high to disable device
 
-  delayMicroseconds(10); // Stall time delay
+  delayMicroseconds(_stall); // Stall time delay
 
   // Write lowWord to SPI bus
   digitalWrite(_CS, LOW); // Set CS low to enable device
-  SPI.transfer(highBytehighWord); // Write high byte from high word to SPI bus
-  SPI.transfer(lowBytehighWord); // Write low byte from high word to SPI bus
+  SPI.transfer(highWord >> 8); // Write high byte from high word to SPI bus
+  SPI.transfer(highWord & 0xFF); // Write low byte from high word to SPI bus
   digitalWrite(_CS, HIGH); // Set CS high to disable device
 
-  delayMicroseconds(10); // Stall time delay
+  delayMicroseconds(_stall); // Stall time delay
 
   return(1);
 }

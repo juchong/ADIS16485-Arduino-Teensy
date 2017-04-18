@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  September 2016
+//  April 2017
 //  Author: Juan Jose Chong <juan.chong@analog.com>
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  ADIS16485.h
@@ -31,6 +31,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifndef ADIS16485_h
 #define ADIS16485_h
 #include "Arduino.h"
 #include <SPI.h>
@@ -147,7 +148,7 @@ public:
   int configSPI();
 
   // Read single register from sensor
-  int16_t regRead(uint16_t regAddr);
+  uint16_t regRead(uint16_t regAddr);
 
   // Write register
   int regWrite(uint16_t regAddr, int16_t regData);
@@ -171,10 +172,21 @@ public:
   float deltaVelocityScale(int16_t sensorData);
 
 private:
-  // Variables to store hardware pin assignments
+  // Chip select pin
   int _CS;
+
+  // IRQ output pin for data ready
   int _DR;
+
+  // Hardware reset pin
   int _RST;
+
+  // SPI stall time
+  int _stall = 5;
+
+  // Current page
   int currentPage = 0x00;
 
 };
+
+#endif
